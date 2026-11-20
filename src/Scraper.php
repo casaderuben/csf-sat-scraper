@@ -7,7 +7,6 @@ namespace PhpCfdi\CsfSatScraper;
 use GuzzleHttp\ClientInterface;
 use LogicException;
 use PhpCfdi\CsfSatScraper\Exceptions\InvalidCaptchaException;
-use PhpCfdi\CsfSatScraper\Exceptions\NetworkException;
 use PhpCfdi\CsfSatScraper\Services\AuthenticationService;
 use PhpCfdi\CsfSatScraper\Services\CaptchaService;
 use PhpCfdi\CsfSatScraper\Services\DocumentService;
@@ -15,6 +14,7 @@ use PhpCfdi\CsfSatScraper\Services\SsoHandler;
 use PhpCfdi\ImageCaptchaResolver\CaptchaResolverInterface;
 use SensitiveParameter;
 use Stringable;
+use Throwable;
 
 readonly class Scraper implements ScraperInterface
 {
@@ -98,8 +98,9 @@ readonly class Scraper implements ScraperInterface
     {
         try {
             $this->authService->logout();
-        } catch (NetworkException) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-            // the SAT session expires anyway; a failed logout must not hide the download result
+        } catch (Throwable) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+            // the SAT session expires anyway; whatever the logout throws (network error, a client
+            // middleware such as a deadline) must not replace the download result or its real failure
         }
     }
 }

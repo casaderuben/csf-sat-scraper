@@ -107,4 +107,18 @@ final class ScraperLoginTest extends TestCase
             $this->assertSame(0, $handler->count(), 'The three logout requests were sent');
         }
     }
+
+    public function testAFailingLogoutDoesNotReplaceTheRealResult(): void
+    {
+        $resolver = new MockResolver(new CaptchaAnswer('buena'));
+        $scraper = $this->scraper([
+            new Response(200),
+            $this->loginForm(),
+            $this->loginForm('El RFC o la contraseña son incorrectos'),
+            new \RuntimeException('a client middleware refused the logout request'),
+        ], $resolver);
+
+        $this->expectException(InvalidCredentialsException::class);
+        $scraper->download();
+    }
 }
