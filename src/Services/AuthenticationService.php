@@ -19,7 +19,8 @@ readonly class AuthenticationService
     public function __construct(
         public ClientInterface $client,
         public string $rfc,
-        #[SensitiveParameter] public string $password,
+        #[SensitiveParameter]
+        public string $password,
     ) {
     }
 

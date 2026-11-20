@@ -44,7 +44,8 @@ readonly class Scraper implements ScraperInterface
         ClientInterface $client,
         CaptchaResolverInterface $captchaResolver,
         string $rfc,
-        #[SensitiveParameter] string $password,
+        #[SensitiveParameter]
+        string $password,
         int $maxCaptchaAttempts = 3,
     ): self {
         return new self(

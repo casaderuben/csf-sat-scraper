@@ -193,7 +193,7 @@ class AuthenticationServiceTest extends TestCase
 
     private function loginPageWithError(string $error): string
     {
-        return "<html><div id=\"divCaptcha\"><img src=\"data:image/jpeg;base64,AAAA\"></div>"
+        return '<html><div id="divCaptcha"><img src="data:image/jpeg;base64,AAAA"></div>'
             . "<script>var error = '" . $error . "';</script></html>";
     }
 

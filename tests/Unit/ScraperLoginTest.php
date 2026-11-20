@@ -14,6 +14,8 @@ use PhpCfdi\CsfSatScraper\Scraper;
 use PhpCfdi\ImageCaptchaResolver\CaptchaAnswer;
 use PhpCfdi\ImageCaptchaResolver\Resolvers\MockResolver;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use Throwable;
 
 final class ScraperLoginTest extends TestCase
 {
@@ -28,19 +30,22 @@ final class ScraperLoginTest extends TestCase
             . self::PNG . '"></div><script>var error = \'' . $error . '\';</script></html>');
     }
 
-    /** @param list<Response> $responses */
-    private function scraper(array $responses, MockResolver $resolver, ?MockHandler &$handler = null): Scraper
+    /**
+     * @param list<Response|Throwable> $responses
+     * @return array{Scraper, MockHandler}
+     */
+    private function scraper(array $responses, MockResolver $resolver): array
     {
         $handler = new MockHandler($responses);
         $client = new Client(['handler' => HandlerStack::create($handler), 'base_uri' => 'https://login.siat.sat.gob.mx']);
 
-        return Scraper::create($client, $resolver, self::RFC, 'secreto', 2);
+        return [Scraper::create($client, $resolver, self::RFC, 'secreto', 2), $handler];
     }
 
     public function testWrongCaptchaIsRetriedWithANewCaptcha(): void
     {
         $resolver = new MockResolver(new CaptchaAnswer('mala'), new CaptchaAnswer('buena'));
-        $scraper = $this->scraper([
+        [$scraper] = $this->scraper([
             new Response(200),                                  // initializeApp
             $this->loginForm(),                                 // getLoginForm
             $this->loginForm('El captcha es incorrecto'),       // sendLoginForm: captcha rejected
@@ -57,7 +62,7 @@ final class ScraperLoginTest extends TestCase
     public function testWrongCaptchaStopsAfterMaxAttempts(): void
     {
         $resolver = new MockResolver(new CaptchaAnswer('mala'), new CaptchaAnswer('mala'));
-        $scraper = $this->scraper([
+        [$scraper] = $this->scraper([
             new Response(200),
             $this->loginForm(),
             $this->loginForm('El captcha es incorrecto'),
@@ -72,7 +77,7 @@ final class ScraperLoginTest extends TestCase
     public function testRejectedPasswordIsNeverRetried(): void
     {
         $resolver = new MockResolver(new CaptchaAnswer('buena'), new CaptchaAnswer('nunca'));
-        $scraper = $this->scraper([
+        [$scraper] = $this->scraper([
             new Response(200),
             $this->loginForm(),
             $this->loginForm('El RFC o la contraseña son incorrectos'),
@@ -89,16 +94,15 @@ final class ScraperLoginTest extends TestCase
 
     public function testDownloadLogsOutEvenWhenLoginFails(): void
     {
-        $handler = null;
         $resolver = new MockResolver(new CaptchaAnswer('buena'));
-        $scraper = $this->scraper([
+        [$scraper, $handler] = $this->scraper([
             new Response(200),
             $this->loginForm(),
             $this->loginForm('El RFC o la contraseña son incorrectos'),
             new Response(200), // logout: satellite
             new Response(200), // logout: close session
             new Response(200), // logout: nidp
-        ], $resolver, $handler);
+        ], $resolver);
 
         try {
             $scraper->download();
@@ -111,11 +115,11 @@ final class ScraperLoginTest extends TestCase
     public function testAFailingLogoutDoesNotReplaceTheRealResult(): void
     {
         $resolver = new MockResolver(new CaptchaAnswer('buena'));
-        $scraper = $this->scraper([
+        [$scraper] = $this->scraper([
             new Response(200),
             $this->loginForm(),
             $this->loginForm('El RFC o la contraseña son incorrectos'),
-            new \RuntimeException('a client middleware refused the logout request'),
+            new RuntimeException('a client middleware refused the logout request'),
         ], $resolver);
 
         $this->expectException(InvalidCredentialsException::class);
